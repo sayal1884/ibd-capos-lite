@@ -1,0 +1,11 @@
+{
+  "name": "ibd-capos-lite",
+  "version": "1.0.0",
+  "description": "IBD CAPO'S Lite: web prototype for differential diagnosis support in inflammatory bowel diseases",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run_tests.js",
+    "test:ui": "node tests/ui_test.js"
+  },
+  "devDependencies": { "jsdom": "^26.0.0" }
+}

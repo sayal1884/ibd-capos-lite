@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IBD CAPO’S Lite – differential diagnosis support for inflammatory bowel diseases</title>
+<meta name="description" content="Prototype clinical decision-support tool for inflammatory bowel diseases: ranked differential diagnosis, CDAI, Marsh classification and a demo agenda. Runs entirely in your browser.">
+<link rel="icon" type="image/png" href="img/ibdLogo.png">
+<link rel="preload" href="fonts/source-sans-3-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Source Sans 3";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/source-sans-3-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Source Sans 3";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/source-sans-3-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Source Sans 3";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/source-sans-3-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;font-style:normal;font-display:swap;src:url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2")}
+:root{
+  --ink:#15272b; --ink-soft:#4d6166; --paper:#f4f7f6; --panel:#ffffff; --line:#d3dcda;
+  --mucosa:#b23a5a; --mucosa-soft:#f7e4ea; --mucosa-ink:#7d2139;
+  --ok:#3f7d4e; --ok-soft:#e3f0e6; --warn:#a96a10; --warn-soft:#f8ecd6; --bad:#a4262c; --bad-soft:#f8e1e1;
+  --info:#2b6a8a; --info-soft:#e0eef5; --dark:#3a3f4a; --dark-soft:#e6e8ec;
+  --radius:10px; --shadow:0 1px 2px rgba(21,39,43,.06);
+  --font-head:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#e8efee; --ink-soft:#a3b5b8; --paper:#0f1b1e; --panel:#16272b; --line:#2b4146;
+    --mucosa:#e0708d; --mucosa-soft:#3a2230; --mucosa-ink:#f3b8c7;
+    --ok:#74c088; --ok-soft:#1d3426; --warn:#e0a94e; --warn-soft:#3a2f17; --bad:#ee7c82; --bad-soft:#3d2224;
+    --info:#74b4d4; --info-soft:#17303c; --dark:#c9ced8; --dark-soft:#262c36; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:5rem}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+h1,h2,h3{font-family:var(--font-head);font-weight:700;line-height:1.2;margin:0 0 .5rem;letter-spacing:-.01em}
+h1{font-size:1.75rem} h2{font-size:1.35rem} h3{font-size:1.05rem}
+p{margin:.25rem 0 .75rem;max-width:68ch}
+a{color:var(--mucosa-ink)} a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:3px solid var(--mucosa);outline-offset:2px;border-radius:4px}
+button,input,select,textarea{font:inherit;color:inherit}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---- header */
+.topbar{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1240px;margin:0 auto;padding:.6rem 1rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.65rem;text-decoration:none;color:var(--ink)}
+.brand img{width:38px;height:38px;object-fit:contain}
+.brand b{font-family:var(--font-head);font-size:1.2rem;display:block;line-height:1.1}
+.brand span{font-size:.8rem;color:var(--ink-soft)}
+nav{display:flex;gap:.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-left:auto}
+nav a{padding:.5rem .85rem;border-radius:8px;text-decoration:none;color:var(--ink-soft);font-weight:600;white-space:nowrap;border:1px solid transparent}
+nav a:hover{background:var(--paper)}
+nav a[aria-current="page"]{color:var(--mucosa-ink);background:var(--mucosa-soft);border-color:var(--mucosa)}
+
+.proto-banner{background:var(--warn-soft);color:var(--ink);border-bottom:1px solid var(--line);font-size:.9rem}
+.proto-banner div{max-width:1240px;margin:0 auto;padding:.45rem 1rem}
+
+main{max-width:1240px;margin:0 auto;padding:1.25rem 1rem 6rem}
+.page{display:none} .page.active{display:block}
+.lede{color:var(--ink-soft);font-size:1.02rem;max-width:70ch}
+
+/* ---- generic pieces */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.pad{padding:1rem 1.1rem}
+.row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);background:var(--panel);padding:.5rem .9rem;border-radius:8px;cursor:pointer;font-weight:600;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--ink-soft)}
+.btn.primary{background:var(--mucosa);border-color:var(--mucosa);color:#fff}
+.btn.primary:hover{filter:brightness(.93)}
+.btn.small{padding:.3rem .6rem;font-size:.88rem}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.badge{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.82rem;font-weight:600;border:1px solid transparent}
+.badge.ok{background:var(--ok-soft);color:var(--ok)} .badge.info{background:var(--info-soft);color:var(--info)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)} .badge.bad{background:var(--bad-soft);color:var(--bad)}
+.badge.dark{background:var(--dark-soft);color:var(--dark)} .badge.mute{background:var(--paper);color:var(--ink-soft);border-color:var(--line)}
+.notice{border-left:4px solid var(--info);background:var(--info-soft);padding:.6rem .85rem;border-radius:0 8px 8px 0;font-size:.93rem;margin:.75rem 0}
+.notice.warn{border-color:var(--warn);background:var(--warn-soft)} .notice.bad{border-color:var(--bad);background:var(--bad-soft)}
+label.field{display:flex;flex-direction:column;gap:.2rem;font-size:.92rem;font-weight:600}
+label.field input,label.field select,label.field textarea,.input{border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;background:var(--panel);font-weight:400;min-height:2.4rem;width:100%}
+.grid{display:grid;gap:.75rem}
+.grid.c2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.grid.c3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.muted{color:var(--ink-soft)} .small{font-size:.88rem}
+table{border-collapse:collapse;width:100%} th,td{padding:.4rem .5rem;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.88rem;color:var(--ink-soft);font-weight:600}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---- diagnosis page */
+.dx-layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:1.25rem;align-items:start}
+@media (max-width:1000px){.dx-layout{grid-template-columns:1fr}}
+.form-tools{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.5rem 0 .75rem}
+.sec{margin-bottom:.6rem}
+.sec>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.7rem 1rem;font-family:var(--font-head);font-weight:700}
+.sec>summary::-webkit-details-marker{display:none}
+.sec>summary::after{content:"+";font-size:1.3rem;color:var(--ink-soft)}
+.sec[open]>summary::after{content:"–"}
+.sec-body{padding:.25rem 1rem 1rem;display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.chip{display:flex;align-items:center;gap:.55rem;padding:.45rem .6rem;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--paper);line-height:1.25;min-height:2.4rem}
+.chip:hover{border-color:var(--ink-soft)}
+.chip input{width:1.1rem;height:1.1rem;accent-color:var(--mucosa);flex:none}
+.chip:has(input:checked){background:var(--mucosa-soft);border-color:var(--mucosa);color:var(--mucosa-ink)}
+.sec-body label.field{font-weight:600}
+
+.result{position:sticky;top:5rem}
+@media (max-width:1000px){.result{position:static}}
+.result .head{padding:1rem 1.1rem;border-bottom:1px solid var(--line)}
+.lead-name{font-family:var(--font-head);font-size:1.6rem;font-weight:700;line-height:1.15;margin:.15rem 0}
+.lead-name.incl{color:var(--ink-soft)}
+.need{display:flex;align-items:center;gap:.6rem}
+.need progress{flex:1;height:.5rem;accent-color:var(--mucosa)}
+.rank{list-style:none;margin:0;padding:.4rem 1.1rem .8rem}
+.rank li{border-bottom:1px solid var(--line)}
+.rank li:last-child{border-bottom:0}
+.rank details>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:minmax(0,1fr) 3rem;gap:.1rem .6rem;padding:.55rem 0}
+.rank details>summary::-webkit-details-marker{display:none}
+.rank .name{font-weight:600}
+.rank .pts{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.bar{grid-column:1 / -1;height:.55rem;background:var(--paper);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink-soft);border-radius:99px;min-width:2px}
+.rank li.lead .bar i{background:var(--mucosa)} .rank li.second .bar i{background:var(--warn)}
+.rank li.lead .name{color:var(--mucosa-ink)}
+.why{padding:0 0 .7rem;font-size:.92rem}
+.why ul{list-style:none;margin:.2rem 0;padding:0}
+.why li{display:flex;justify-content:space-between;gap:1rem;padding:.12rem 0;border:0}
+.why .plus{color:var(--ok);font-weight:600} .why .minus{color:var(--bad);font-weight:600}
+.result .foot{padding:.75rem 1.1rem 1rem;border-top:1px solid var(--line)}
+.mobile-bar{display:none}
+@media (max-width:1000px){
+  .mobile-bar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:2px solid var(--mucosa);padding:.55rem 1rem calc(.55rem + env(safe-area-inset-bottom,0px));align-items:center;justify-content:space-between;gap:1rem}
+}
+
+/* ---- scores page */
+.score-cards{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.score-card{padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+.score-card img{width:56px;height:56px;object-fit:contain}
+.score-card.off{opacity:.75;background:var(--paper)}
+.score-top{display:flex;gap:.8rem;align-items:center}
+.big{font-family:var(--font-head);font-size:2.6rem;font-weight:700;line-height:1}
+.two-col{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:1.25rem;align-items:start}
+@media (max-width:900px){.two-col{grid-template-columns:1fr}}
+.radio-row{display:flex;flex-wrap:wrap;gap:.4rem}
+.radio-row label{display:flex;gap:.35rem;align-items:center;border:1px solid var(--line);border-radius:8px;padding:.35rem .6rem;cursor:pointer;background:var(--paper)}
+.radio-row label:has(input:checked){border-color:var(--mucosa);background:var(--mucosa-soft);color:var(--mucosa-ink);font-weight:600}
+.radio-row input{accent-color:var(--mucosa)}
+
+/* ---- agenda */
+.cal{padding:.75rem}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-dow{font-size:.8rem;color:var(--ink-soft);text-align:center;padding:.2rem 0;font-weight:600}
+.cal-day{aspect-ratio:1/.85;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;font-variant-numeric:tabular-nums}
+.cal-day:hover{border-color:var(--ink-soft)}
+.cal-day.other{opacity:.4} .cal-day.today{border-color:var(--info);border-width:2px}
+.cal-day.sel{background:var(--mucosa);color:#fff;border-color:var(--mucosa)}
+.cal-day .dot{font-size:.7rem;background:var(--mucosa-soft);color:var(--mucosa-ink);border-radius:99px;padding:0 .35rem;font-weight:600}
+.cal-day.sel .dot{background:#fff;color:var(--mucosa-ink)}
+.appt{padding:.7rem .85rem;display:grid;gap:.35rem;border-bottom:1px solid var(--line)}
+.appt:last-child{border-bottom:0}
+.appt.cancelled .appt-name{text-decoration:line-through;color:var(--ink-soft)}
+.appt-name{font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-bottom:1rem}
+.stat{padding:.6rem .8rem} .stat b{font-family:var(--font-head);font-size:1.6rem;display:block;line-height:1.1}
+dialog{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--ink);padding:1.1rem;max-width:min(92vw,380px)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+
+/* ---- guide / footer */
+.prose h2{margin-top:1.5rem} .prose li{margin:.2rem 0;max-width:68ch}
+footer{border-top:1px solid var(--line);background:var(--panel);font-size:.88rem;color:var(--ink-soft)}
+footer div{max-width:1240px;margin:0 auto;padding:.9rem 1rem}
+
+/* ---- print: only the case summary */
+#printCase{display:none}
+@page{margin:18mm}
+@media print{
+  body{background:#fff;color:#000;font-size:11pt}
+  .topbar,.proto-banner,main,.mobile-bar,footer{display:none !important}
+  #printCase{display:block;padding:0}
+  #printCase h1{font-size:18pt} #printCase h2{font-size:13pt;margin-top:1rem}
+  #printCase table td,#printCase table th{border-bottom:1px solid #999}
+}
+@media (prefers-reduced-motion: no-preference){
+  .bar i{transition:width .35s ease}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#diagnosis" aria-label="IBD CAPO’S Lite, home">
+      <img src="img/ibdLogo.png" alt="">
+      <div><b>IBD CAPO’S Lite</b><span>Differential diagnosis support</span></div>
+    </a>
+    <nav aria-label="Main">
+      <a href="#diagnosis" data-nav="diagnosis">Diagnosis</a>
+      <a href="#scores" data-nav="scores">Scores</a>
+      <a href="#agenda" data-nav="agenda">Agenda</a>
+      <a href="#guide" data-nav="guide">Guide</a>
+    </nav>
+  </div>
+</header>
+<div class="proto-banner" role="note"><div>Research prototype for decision support. It does not replace a specialist’s judgement and is not a certified medical device. Nothing you enter leaves this browser.</div></div>
+
+<main id="main">
+
+  <!-- ============ DIAGNOSIS ============ -->
+  <section class="page" id="page-diagnosis" aria-labelledby="h-dx">
+    <h1 id="h-dx">Differential diagnosis</h1>
+    <p class="lede">Tick the clinical, biological, microbiological and endoscopic findings you have. The ranking updates as you go and shows which findings pushed each diagnosis up or down.</p>
+    <div class="dx-layout">
+      <div>
+        <div class="form-tools">
+          <button class="btn small" type="button" id="expandAll">Open all sections</button>
+          <button class="btn small" type="button" id="collapseAll">Close all sections</button>
+          <button class="btn small danger" type="button" id="resetCase">Clear the case</button>
+        </div>
+        <div id="dxForm"></div>
+      </div>
+      <aside class="card result" id="dxResult" aria-label="Result" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <!-- ============ SCORES ============ -->
+  <section class="page" id="page-scores" aria-labelledby="h-sc">
+    <h1 id="h-sc">Clinical scores</h1>
+    <p class="lede">Two calculators are available in this web version. The other four scores are part of the full desktop application.</p>
+    <div class="score-cards" id="scoreCards"></div>
+  </section>
+
+  <!-- ============ CDAI ============ -->
+  <section class="page" id="page-cdai" aria-labelledby="h-cdai">
+    <p><a href="#scores">Back to scores</a></p>
+    <h1 id="h-cdai">CDAI – Crohn’s Disease Activity Index</h1>
+    <p class="lede">Activity score as implemented in IBD CAPO’S. Results update as you type.</p>
+    <div class="two-col">
+      <div class="card pad">
+        <h2>Patient</h2>
+        <div class="grid c2">
+          <label class="field">Sex<select id="cd-sex"><option value="">Select</option><option value="M">Male</option><option value="F">Female</option></select></label>
+          <label class="field">Height (cm)<input id="cd-height" type="number" min="50" max="250" step="0.1" inputmode="decimal"></label>
+          <label class="field">Current weight (kg)<input id="cd-weight" type="number" min="10" max="250" step="0.1" inputmode="decimal"></label>
+          <label class="field"><span>Hematocrit (%) <span class="muted small" style="font-weight:400">empty = 40</span></span><input id="cd-hct" type="number" min="10" max="70" step="0.1" inputmode="decimal"></label>
+        </div>
+        <p id="cd-bmi" class="muted small" style="margin-top:.6rem"></p>
+        <h2 style="margin-top:1rem">Clinical data</h2>
+        <div class="grid c2">
+          <label class="field">Liquid stools per day<input id="cd-stools" type="number" min="0" max="20" step="1" placeholder="0" inputmode="numeric"></label>
+          <label class="field">Abdominal pain<select id="cd-pain"></select></label>
+          <label class="field">General well-being<select id="cd-well"></select></label>
+          <label class="field">Abdominal mass<select id="cd-mass"></select></label>
+          <label class="field">Antidiarrheal drugs<select id="cd-anti"><option value="0">0: No</option><option value="1">1: Yes</option></select></label>
+        </div>
+        <h2 style="margin-top:1rem">Complications <span class="muted small" style="font-weight:400">(×20 each)</span></h2>
+        <div class="grid c2" id="cd-comps"></div>
+      </div>
+      <div class="card pad" aria-live="polite">
+        <div id="cd-out"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MARSH ============ -->
+  <section class="page" id="page-marsh" aria-labelledby="h-marsh">
+    <p><a href="#scores">Back to scores</a></p>
+    <h1 id="h-marsh">Marsh-Oberhuber classification – celiac disease</h1>
+    <p class="lede">Enter the histology findings, or pick a Marsh type to load typical values. Both stay in sync.</p>
+    <div class="two-col">
+      <div class="card pad">
+        <h2>Histology</h2>
+        <div class="grid c2">
+          <label class="field">Intraepithelial lymphocytes (per 100 enterocytes)<input id="mh-iel" type="number" min="0" max="100" step="1" value="10" inputmode="numeric"></label>
+          <label class="field">Villus/crypt ratio<input id="mh-vc" type="number" min="0.5" max="5" step="0.1" value="3.5" inputmode="decimal"></label>
+          <label class="field">Villous atrophy<select id="mh-atrophy"></select></label>
+          <label class="field"><span>Biopsy quality <span class="muted small" style="font-weight:400">for the record only</span></span><select id="mh-quality"><option>Excellent</option><option selected>Good</option><option>Average</option><option>Poor</option></select></label>
+        </div>
+        <label class="chip" style="margin-top:.75rem"><input id="mh-crypt" type="checkbox"> Crypt hyperplasia</label>
+        <h2 style="margin-top:1rem">Marsh type</h2>
+        <div class="radio-row" id="mh-types" role="radiogroup" aria-label="Marsh type"></div>
+        <p class="muted small" style="margin-top:.6rem">The villus/crypt ratio is shown for reference. It is not used to classify, as in the desktop application.</p>
+      </div>
+      <div class="card pad" aria-live="polite"><div id="mh-out"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ AGENDA ============ -->
+  <section class="page" id="page-agenda" aria-labelledby="h-ag">
+    <h1 id="h-ag">Medical agenda</h1>
+    <div class="notice warn"><b>Demonstration only.</b> Appointments are stored in this browser and are never sent anywhere. Use fictional data: do not enter real patient information.</div>
+    <div class="stats" id="ag-stats"></div>
+    <div class="row" style="margin-bottom:.9rem">
+      <button class="btn small" type="button" id="ag-demo">Load fictional examples</button>
+      <button class="btn small" type="button" id="ag-ics-all">Export all (.ics)</button>
+      <button class="btn small danger" type="button" id="ag-clear">Delete all appointments</button>
+      <span id="ag-storage" class="muted small"></span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="card cal" id="ag-cal"></div>
+        <div class="card pad" style="margin-top:1rem">
+          <h2 id="ag-day-title">Day</h2>
+          <div id="ag-day"></div>
+        </div>
+      </div>
+      <div class="card pad">
+        <h2>New appointment</h2>
+        <p class="muted small" id="ag-form-date"></p>
+        <div class="grid c2">
+          <label class="field"><span>Name <span class="muted small" style="font-weight:400">required</span></span><input id="ag-name" type="text" autocomplete="off"></label>
+          <label class="field">Age<input id="ag-age" type="number" min="0" max="120" step="1" inputmode="numeric"></label>
+          <label class="field">Sex<select id="ag-sex"><option>Male</option><option>Female</option></select></label>
+          <label class="field">Time<input id="ag-time" type="time"></label>
+          <label class="field">Phone<input id="ag-phone" type="tel" autocomplete="off"></label>
+          <label class="field">Email<input id="ag-email" type="email" autocomplete="off"></label>
+        </div>
+        <label class="field" style="margin-top:.75rem"><span>Reason <span class="muted small" style="font-weight:400">required</span></span><select id="ag-reason"></select></label>
+        <label class="field" style="margin-top:.75rem">Details<textarea id="ag-precision" rows="2"></textarea></label>
+        <label class="field" style="margin-top:.75rem">Notes<textarea id="ag-notes" rows="2"></textarea></label>
+        <div class="row" style="margin-top:.9rem">
+          <button class="btn primary" type="button" id="ag-save">Save appointment</button>
+          <button class="btn" type="button" id="ag-clear-form">Clear the form</button>
+        </div>
+        <p id="ag-msg" class="small" role="status" style="margin-top:.6rem"></p>
+      </div>
+    </div>
+    <dialog id="ag-resched">
+      <form method="dialog" id="ag-resched-form">
+        <h3>Reschedule</h3>
+        <label class="field">New date<input type="date" id="ag-rs-date" required></label>
+        <label class="field" style="margin-top:.6rem">New time<input type="time" id="ag-rs-time"></label>
+        <div class="row" style="margin-top:.9rem;justify-content:flex-end">
+          <button class="btn" value="cancel" formnovalidate>Cancel</button>
+          <button class="btn primary" value="ok" id="ag-rs-ok">Save</button>
+        </div>
+      </form>
+    </dialog>
+  </section>
+
+  <!-- ============ GUIDE ============ -->
+  <section class="page prose" id="page-guide" aria-labelledby="h-gd">
+    <h1 id="h-gd">Guide</h1>
+    <p class="lede">What this web version does, how to read its results, and where it stops.</p>
+
+    <h2>What it is</h2>
+    <p>IBD CAPO’S Lite is the web edition of a desktop expert system built for the differential diagnosis of inflammatory bowel diseases in settings with limited specialist resources. It was developed for research at the University of Yaoundé I, Cameroon.</p>
+
+    <h2>How the differential diagnosis works</h2>
+    <ul>
+      <li>Each of seven conditions (Crohn’s disease, ulcerative colitis, intestinal tuberculosis, infectious colitis, radiation colitis, celiac disease, indeterminate colitis) receives points from the findings you tick, between 0 and 100.</li>
+      <li>The eighth line, <i>Other diagnosis</i>, takes the highest of eight non-inflammatory sub-scores: hemorrhoids, diverticulosis, dolichocolon/IBS, tumor/polyp, microscopic colitis, Hirschsprung disease, Behçet disease and a residual category.</li>
+      <li>The highest score is the leading diagnosis. Below 30 points the result is reported as inconclusive. Other diagnoses at or above half of the top score (and at least 30) are listed as secondary.</li>
+      <li>Open any line to see the findings that added or removed points.</li>
+      <li>Scores are rule-based points. They are not probabilities.</li>
+    </ul>
+
+    <h2>Reading the results</h2>
+    <ul>
+      <li>The ranking appears once at least three findings are ticked or chosen.</li>
+      <li>A list left on “Not specified” counts as “not present” in rules written as “not equal to”. Leaving <i>Rectal bleeding</i> and <i>Alternating bowel habit</i> unspecified therefore gives Radiation colitis a small baseline of 14 points. Choose the real value when you know it.</li>
+      <li>Age only affects the non-inflammatory sub-scores (for example diverticulosis, tumor/polyp and Hirschsprung disease).</li>
+      <li>“Print a summary” produces a page with the findings and the ranking, and no identifier. Save it as PDF from your browser’s print dialog.</li>
+    </ul>
+
+    <h2>Scores</h2>
+    <ul>
+      <li><b>CDAI</b>: activity score computed from stools, pain, well-being, complications, antidiarrheal use, abdominal mass, hematocrit and weight. The formula used is shown with each result.</li>
+      <li><b>Marsh-Oberhuber</b>: histological classification of the duodenal biopsy. If the combination you enter matches no category, the rules fall back to Marsh 0 and the page warns you.</li>
+      <li>CDEIS, SES-CD, UCEIS and Rutgeerts are available in the desktop application only.</li>
+    </ul>
+
+    <h2>Agenda</h2>
+    <p>A demonstration of the appointment manager: calendar, conflict check within 30 minutes, reschedule, cancel, reminder messages through WhatsApp or your email application, and .ics export for your own calendar. It sends nothing itself.</p>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>The rules have been reviewed by a clinician but have not been validated in a prospective study.</li>
+      <li>The tool supports a clinician’s reasoning. It never replaces specialist assessment, endoscopy, histology or microbiology.</li>
+      <li>The endoscopic image analysis module (EndoVision CAPO’S) is part of the desktop application and is not included here.</li>
+    </ul>
+
+    <h2>Privacy</h2>
+    <p>This site has no server component. Diagnosis and score inputs are held in memory and disappear when you close or reload the page. Agenda entries are kept in your browser’s local storage until you delete them. See <a href="LEGAL.md">LEGAL.md</a> in the repository for details.</p>
+
+    <h2>Author</h2>
+    <p>NGOHOBA Vigny Sayal, PhD candidate in biochemistry, University of Yaoundé I, Cameroon.</p>
+  </section>
+</main>
+
+<div class="mobile-bar" id="mobileBar" hidden>
+  <div><span class="muted small">Leading</span><div id="mobileLead" style="font-weight:700"></div></div>
+  <a class="btn small primary" href="#dxResult" id="mobileJump">See ranking</a>
+</div>
+
+<footer><div>© 2026 NGOHOBA Vigny Sayal. Research prototype, version Lite 1.0. Decision support only, not a medical device. No data is sent to any server.</div></footer>
+
+<section id="printCase" aria-hidden="true"></section>
+
+<script src="js/rules.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/agenda.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

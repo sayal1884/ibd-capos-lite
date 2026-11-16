@@ -1,0 +1,9 @@
+# Never publish these (desktop application files and data)
+setup_ibdcapos.py
+*.db
+*.sqlite
+*.sqlite3
+scores_config.json
+ibd_diagnostic.db
+node_modules/
+tests/last-run.json
